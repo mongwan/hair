@@ -1,0 +1,81 @@
+name: Custom domain check
+
+# 커스텀 도메인의 SSL 인증서가 발급될 때까지 15분마다 확인한다.
+# 인증서가 유효하고 우리 페이지가 응답하면:
+#   1) .env.production의 VITE_SITE_URL을 커스텀 도메인으로 바꿔 main에 커밋
+#   2) Test & Deploy 워크플로 실행 (GITHUB_TOKEN 푸시는 다른 워크플로를 트리거하지 않으므로 직접 실행)
+#   3) 완료 알림 이슈 생성
+#   4) 이 워크플로 비활성화
+# 아직이면 아무것도 하지 않고 성공으로 끝난다.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+env:
+  DOMAIN: choose-hair-of.mongwan.dev
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Already switched?
+        id: state
+        run: |
+          if grep -qx "VITE_SITE_URL=https://$DOMAIN" .env.production; then
+            echo "switched=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check certificate and page
+        id: probe
+        if: steps.state.outputs.switched != 'true'
+        run: |
+          echo "--- certificate"
+          echo | openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" 2>/dev/null \
+            | openssl x509 -noout -subject -issuer -dates 2>/dev/null || echo "(no certificate)"
+
+          # curl은 인증서를 검증하므로, 실패하면 아직 발급 전
+          if curl -sS --fail --max-time 20 -o page.html "https://$DOMAIN/" && grep -q 'name="robots"' page.html; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "✅ https://$DOMAIN 정상 응답"
+          else
+            echo "⏳ 아직 준비되지 않음"
+          fi
+
+      - name: Switch VITE_SITE_URL
+        if: steps.probe.outputs.ready == 'true'
+        run: |
+          sed -i "s#^VITE_SITE_URL=.*#VITE_SITE_URL=https://$DOMAIN#" .env.production
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Switch VITE_SITE_URL to https://$DOMAIN"
+          git push origin HEAD:main
+
+      - name: Deploy
+        if: steps.probe.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main
+
+      - name: Notify
+        if: steps.probe.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "커스텀 도메인 연결 완료: $DOMAIN" \
+            --body "SSL 인증서가 발급되어 \`VITE_SITE_URL\`을 https://$DOMAIN 으로 바꾸고 배포를 시작했습니다. 기존 web.app 주소는 새 도메인으로 이동합니다."
+
+      - name: Disable this workflow
+        if: steps.state.outputs.switched == 'true' || steps.probe.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable domain-check.yml
