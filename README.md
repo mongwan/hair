@@ -62,6 +62,23 @@ npx firebase login
 npm run deploy
 ```
 
+## 커스텀 도메인 (예: hair.mongwan.dev)
+
+1. Firebase 콘솔 > Hosting > **커스텀 도메인 추가**에 `hair.mongwan.dev` 입력
+2. 콘솔이 보여주는 레코드를 Netlify DNS(`mongwan.dev` 영역)에 그대로 추가 (보통 아래 두 개)
+   | 타입 | 이름 | 값 |
+   | --- | --- | --- |
+   | A | `hair` | 콘솔에 표시된 IP (예: `199.36.158.100`) |
+   | TXT | `hair` | `hosting-site=hair-d2632` |
+   - `hair`에 이미 다른 A/AAAA/CNAME 레코드가 있으면 삭제
+   - 콘솔이 `_acme-challenge.hair` TXT를 추가로 요구하면 그것도 추가
+3. 콘솔 상태가 **연결됨**이 되고 SSL 인증서가 발급될 때까지 대기 (수 분~최대 24시간)
+   - `.dev`는 HTTPS 전용이라 인증서가 나오기 전에는 접속되지 않는다
+4. `.env.production`의 `VITE_SITE_URL`을 `https://hair.mongwan.dev`로 바꿔 배포
+   - 미리보기 이미지(og:image) 주소가 새 도메인으로 바뀌고
+   - 기존 `*.web.app` / `*.firebaseapp.com` 주소로 들어온 방문자는 새 도메인으로 이동 (`?from=` 유지)
+   - **3번이 끝나기 전에 바꾸면 기존 주소도 열리지 않으니 순서 주의**
+
 ## 공유 링크와 출처 구분
 
 `?from=` 뒤에 출처를 붙여서 공유한다. 영문 소문자, 숫자, `-`, `_` 30자까지.

@@ -4,11 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
+    <script>
+      // 기본 주소(*.web.app, *.firebaseapp.com)로 들어오면 VITE_SITE_URL 도메인으로 이동.
+      // 주소마다 localStorage가 달라 중복 투표가 생기는 것을 막는다. ?from= 등은 그대로 넘긴다.
+      (function () {
+        try {
+          var site = new URL('%VITE_SITE_URL%');
+          var host = location.hostname;
+          if (host !== site.hostname && /\.(web\.app|firebaseapp\.com)$/.test(host)) {
+            location.replace(site.origin + location.pathname + location.search + location.hash);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="theme-color" content="#0e0e10" />
     <title>제 다음 머리 골라주세요</title>
     <meta name="description" content="어떤 머리가 제일 잘 어울릴지 한 표 부탁해요!" />
 
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
     <meta property="og:title" content="제 다음 머리 골라주세요 💇" />
     <meta property="og:description" content="면접 앞두고 머리 정리하려고 해요. 어떤 머리가 제일 잘 어울릴지 한 표 부탁해요!" />
     <meta property="og:image" content="%VITE_SITE_URL%/og-2.jpg" />
