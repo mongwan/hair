@@ -18,7 +18,7 @@
 ## 2. 기술 스택
 
 - **빌드**: Vite + 바닐라 TypeScript, 단일 `index.html`
-- **Firebase JS SDK (modular)**: `firebase/app`, `firebase/firestore`만 사용 (Auth 미사용 → 번들 작음)
+- **Firebase JS SDK (modular)**: `firebase/app`, `firebase/firestore/lite`만 사용 (Auth·실시간 기능 미사용 → JS 약 30KB gzip)
 - **Firebase Hosting**: 페이지 + 이미지 서빙
 - **Cloud Firestore**: 투표, 댓글 저장
 - **이미지**: Hosting의 `public/images/`에 정적 파일로 포함
