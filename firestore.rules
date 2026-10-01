@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 후보 id를 바꾸면 src/styles.ts도 함께 수정
+    function validStyle(s) {
+      return s in ['style-01', 'style-02', 'style-03', 'style-04'];
+    }
+
+    function validSource(s) {
+      return s is string && s.matches('^[a-z0-9_-]{1,30}$');
+    }
+
+    function validText(s, min, max) {
+      return s is string && s.size() >= min && s.size() <= max;
+    }
+
+    // 브라우저당 문서 1개(문서 ID = localStorage의 clientId). 다시 투표하면 덮어씀
+    match /votes/{clientId} {
+      allow read, delete: if false;
+      allow create, update: if clientId.matches('^[0-9a-f-]{36}$')
+        && request.resource.data.keys().hasOnly(['styleId', 'source', 'updatedAt'])
+        && validStyle(request.resource.data.styleId)
+        && validSource(request.resource.data.source)
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /comments/{commentId} {
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['name', 'body', 'source', 'createdAt'])
+        && validText(request.resource.data.name, 1, 20)
+        && validText(request.resource.data.body, 1, 500)
+        && validSource(request.resource.data.source)
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
