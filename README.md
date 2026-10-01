@@ -36,10 +36,30 @@ npx firebase emulators:start --only firestore --project demo-hair
 VITE_USE_EMULATOR=true npm run dev
 ```
 
-## 배포
+## 배포 (GitHub Actions)
+
+`.github/workflows/deploy.yml`
+
+- PR: 빌드 + 보안 규칙 테스트만 실행
+- `main`에 푸시(머지): 테스트 통과 시 Hosting과 Firestore 규칙을 `hair-d2632`에 배포
+- Actions 탭에서 수동 실행(Run workflow)도 가능 (`main`에서만 배포됨)
+
+### 최초 1회: 서비스 계정 키 등록
+
+1. [Google Cloud 콘솔 > IAM 및 관리자 > 서비스 계정](https://console.cloud.google.com/iam-admin/serviceaccounts?project=hair-d2632)에서 **서비스 계정 만들기**
+   - 이름: `github-deploy`
+   - 역할: **Firebase 관리자** (`Firebase Admin`)
+2. 만든 계정 > **키** 탭 > 키 추가 > 새 키 만들기 > **JSON** → 파일이 다운로드됨
+3. GitHub 저장소 > Settings > Secrets and variables > Actions > **New repository secret**
+   - Name: `FIREBASE_SERVICE_ACCOUNT`
+   - Secret: 다운로드한 JSON 파일 내용 전체
+4. 등록 후 다운로드한 JSON 파일은 삭제 (키는 GitHub에만 보관)
+
+### 로컬에서 직접 배포할 때
 
 ```bash
-npm run deploy             # 빌드 + Hosting·Firestore 규칙 배포
+npx firebase login
+npm run deploy
 ```
 
 ## 공유 링크와 출처 구분
