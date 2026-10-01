@@ -7,15 +7,11 @@
 
 ## 처음 설정
 
-1. Firebase 콘솔에서 Firestore 데이터베이스 생성 (위치: `asia-northeast3` 서울 권장)
-2. 프로젝트 설정 > 내 앱 > 웹 앱 추가 후 구성값 복사
-3. 로컬 설정
-   ```bash
-   npm install
-   cp .env.example .env      # 구성값과 VITE_SITE_URL 입력
-   ```
-4. `.firebaserc`의 `YOUR_FIREBASE_PROJECT_ID`를 실제 프로젝트 ID로 변경
-5. `npx firebase login`
+Firebase 프로젝트: `hair-d2632` (배포 주소 https://hair-d2632.web.app)
+
+- 웹 앱 설정값은 `.env.production`에 커밋되어 있다. 브라우저에 공개되는 값이라 커밋해도 안전하고, 데이터 보호는 `firestore.rules`가 담당한다.
+- Firebase 콘솔에서 Firestore 데이터베이스가 생성되어 있어야 한다 (위치: `asia-northeast3` 서울 권장).
+- 로컬에서 배포하려면 `npm install` 후 `npx firebase login`.
 
 ## 후보 스타일 바꾸기
 
@@ -29,7 +25,7 @@
 ## 개발
 
 ```bash
-npm run dev                # 실제 Firestore에 연결
+npm run dev                # 개발 서버 (.env 없으면 demo 프로젝트 → 에뮬레이터와 함께 사용)
 npm run test:rules         # 에뮬레이터로 보안 규칙 테스트 (Java 필요)
 ```
 
