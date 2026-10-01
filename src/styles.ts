@@ -9,26 +9,26 @@ export interface HairStyle {
 export const STYLES: HairStyle[] = [
   {
     id: 'style-01',
-    name: '투블럭 댄디컷',
-    description: '옆은 짧게, 윗머리는 자연스럽게 내린 깔끔한 스타일',
-    image: '/images/style-01.webp',
+    name: '텍스처드 크롭',
+    description: '확 짧게 자르고 앞머리로 이마를 적당히 덮는 커트. 웨이브가 윗머리 질감으로 살아나요.',
+    image: '/images/crop.webp',
   },
   {
     id: 'style-02',
-    name: '가르마펌',
-    description: '6:4 가르마에 볼륨을 살린 부드러운 인상',
-    image: '/images/style-02.webp',
+    name: '가르마',
+    description: '짧은 길이에 가르마를 타서 이마를 드러낸 단정한 스타일. 모양 유지엔 가르마펌이 필요할 수 있어요.',
+    image: '/images/part.webp',
   },
   {
     id: 'style-03',
-    name: '애즈펌',
-    description: '앞머리를 C컬로 넘겨 이마를 살짝 드러낸 스타일',
-    image: '/images/style-03.webp',
+    name: '쉐기 컷',
+    description: '턱선~목 길이로 줄이고 층을 많이 낸 레이어드. 숱이 가벼워지고 웨이브가 살아 손질이 쉬워요.',
+    image: '/images/shaggy.webp',
   },
   {
     id: 'style-04',
-    name: '리프컷',
-    description: '레이어드로 가볍게, 끝을 바깥으로 흐르게',
-    image: '/images/style-04.webp',
+    name: '소프트 멀릿',
+    description: '앞과 옆은 짧게, 뒷머리는 목을 덮을 정도로 남겨 자연스럽게 이어지는 스타일.',
+    image: '/images/mullet.webp',
   },
 ];

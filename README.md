@@ -20,7 +20,7 @@ Firebase 프로젝트: `hair-d2632` (배포 주소 https://hair-d2632.web.app)
 2. `src/styles.ts`의 `STYLES` 수정
 3. id를 추가/변경했다면 `firestore.rules`의 `validStyle` 목록도 똑같이 수정
    (`npm run test:rules`가 둘이 다르면 실패한다)
-4. 공유 미리보기 이미지는 `public/og.jpg` (1200×630)
+4. 공유 미리보기 이미지는 `public/og-2.jpg` (1200×630). 바꿀 때는 파일명도 바꿔야 메신저 캐시를 피할 수 있다
 
 ## 개발
 
