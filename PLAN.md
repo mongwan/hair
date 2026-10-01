@@ -1,188 +1,165 @@
 # 헤어스타일 추천 투표 웹사이트 — 구현 계획
 
-친구/지인에게 링크를 공유해서 **내게 어울리는 헤어스타일을 투표**받고, **의견을 댓글로** 받는 모바일 전용 웹사이트.
+지인에게 링크를 공유해서 **내게 어울리는 헤어스타일을 투표**받고 **의견을 댓글로** 받는 모바일 전용 단일 페이지.
+결과(투표·댓글)는 Firestore에 저장만 하고, 확인은 Firebase 콘솔에서 직접 한다.
 
-## 1. 목표와 범위
+## 1. 범위
 
 | 기능 | 내용 |
 | --- | --- |
-| 스타일 갤러리 | 후보 헤어스타일 이미지(합성/레퍼런스 사진) + 이름 + 짧은 설명 |
-| 투표 | 1인 1표, 후보 중 하나 선택. 다시 누르면 선택 변경 가능 |
-| 결과 보기 | 투표 후 후보별 득표 수/비율 막대 표시 |
-| 의견 남기기 | 닉네임(선택) + 본문. **작성만 가능, 읽기는 나(관리자)만** |
-| 관리자 페이지 | 내 Google 계정으로 로그인 → 전체 댓글, 투표 현황 확인 |
+| 스타일 갤러리 | 후보 헤어스타일 이미지 + 이름 + 짧은 설명 |
+| 투표 | 브라우저당 1표, 후보 중 하나 선택. 다시 누르면 선택 변경. **결과는 화면에 표시하지 않음** |
+| 의견 남기기 | 이름(닉네임) + 코멘트 입력창 두 개. 저장만 하고 화면에 목록 표시 안 함 |
+| 유입 출처 구분 | `/?from=twitter` 같은 파라미터를 투표·댓글 문서에 함께 저장 |
+| 검색 차단 | `noindex` 적용 |
 
-범위 밖: 회원가입, 이미지 업로드 UI, 데스크톱 레이아웃, 다국어.
+하지 않는 것: 로그인, 관리자 페이지, 결과/댓글 화면 표시, 집계 UI, 데스크톱 레이아웃.
 
 ## 2. 기술 스택
 
-- **빌드**: Vite + 바닐라 TypeScript (페이지 2개짜리라 프레임워크 불필요, 번들 작게 유지)
-- **Firebase JS SDK v10+ (modular)**: `firebase/app`, `firebase/auth`, `firebase/firestore`
-- **Firebase Hosting**: 정적 파일 + 이미지 서빙
+- **빌드**: Vite + 바닐라 TypeScript, 단일 `index.html`
+- **Firebase JS SDK (modular)**: `firebase/app`, `firebase/firestore`만 사용 (Auth 미사용 → 번들 작음)
+- **Firebase Hosting**: 페이지 + 이미지 서빙
 - **Cloud Firestore**: 투표, 댓글 저장
-- **Firebase Auth**
-  - 방문자: **익명 로그인(Anonymous Auth)** — 가입 없이 uid를 받아 중복 투표 방지
-  - 관리자: **Google 로그인** — 내 uid만 댓글 읽기 허용
-- **이미지**: Cloud Storage 대신 **Hosting에 정적 파일로 포함** (`public/images/`)
-  - 이유: 이미지가 고정이고, Storage 신규 버킷은 Blaze(종량제) 요금제가 필요함. Spark(무료)로 충분히 운영 가능
+- **이미지**: Hosting의 `public/images/`에 정적 파일로 포함
+  - Blaze라 Storage도 쓸 수 있지만, 이미지가 고정이면 Hosting이 설정·규칙·CORS 관리가 없어 가장 단순하다. 나중에 이미지를 자주 바꾸고 싶어지면 Storage로 옮긴다.
 
 ## 3. 디렉터리 구조
 
 ```
 hair/
-├─ index.html            # 투표 + 의견 페이지
-├─ admin.html            # 관리자 페이지
+├─ index.html            # 유일한 페이지 (noindex 메타 포함)
 ├─ public/
 │  ├─ images/            # style-01.webp ... (가로 720px 이하, WebP)
 │  └─ og.jpg             # 카카오톡/메신저 공유 미리보기 이미지
 ├─ src/
-│  ├─ firebase.ts        # 초기화, auth/db export
+│  ├─ firebase.ts        # 초기화, db export
 │  ├─ styles.ts          # 후보 스타일 목록 (id, 이름, 설명, 이미지 경로)
-│  ├─ main.ts            # 갤러리 렌더, 투표, 결과, 댓글 작성
-│  ├─ admin.ts           # Google 로그인, 댓글 목록, 투표 집계
+│  ├─ source.ts          # ?from= 파싱/보관
+│  ├─ main.ts            # 갤러리 렌더, 투표, 댓글 전송
 │  └─ style.css
 ├─ firestore.rules
-├─ firestore.indexes.json
 ├─ firebase.json
-├─ .firebaserc
-└─ vite.config.ts        # 멀티 페이지 입력(index, admin)
+└─ .firebaserc
 ```
 
-후보 스타일 목록은 코드(`styles.ts`)에 두고, Firestore에는 **결과(투표/댓글)만** 저장한다. 스타일을 바꾸려면 이미지 교체 + 배포.
+후보 목록은 코드(`styles.ts`)에 두고 Firestore에는 **결과만** 저장한다.
 
-## 4. 데이터 모델 (Firestore)
+## 4. 유입 출처(`from`) 처리
 
-### `votes/{uid}`
-방문자 1명당 문서 1개 (문서 ID = 익명 uid → 자연스럽게 1인 1표)
+- 링크 예: `https://<project>.web.app/?from=twitter`, `?from=kakao`, `?from=insta`, `?from=family`
+- 규칙:
+  1. URL의 `from` 값을 소문자로 바꾸고 `[a-z0-9_-]{1,30}`만 허용. 형식이 안 맞으면 무시
+  2. 유효한 값이 있으면 `localStorage`에 저장 (새로고침·재방문해도 유지)
+  3. URL에 없으면 저장된 값, 그것도 없으면 `"direct"`
+- 저장 후 `history.replaceState`로 주소창에서 `?from=`을 지워서, 방문자가 링크를 복사해 다른 곳에 퍼뜨려도 원래 출처가 따라가지 않게 한다. (복사된 링크로 들어온 사람은 `direct`로 집계)
+- 투표·댓글 문서마다 `source` 필드로 저장 → 콘솔에서 `source == "twitter"` 필터로 확인
+
+## 5. 데이터 모델 (Firestore)
+
+로그인이 없으므로 브라우저별 식별자로 `localStorage`에 무작위 `clientId`(`crypto.randomUUID()`)를 만들어 둔다.
+
+### `votes/{clientId}`
+브라우저당 문서 1개 → 다시 투표하면 같은 문서를 덮어써서 선택 변경
 
 ```ts
 {
-  styleId: "style-02",          // styles.ts의 id
+  styleId: "style-02",
+  source: "twitter",
   updatedAt: serverTimestamp()
 }
 ```
-
-집계는 `getCountFromServer(query(votes, where("styleId", "==", id)))`로 후보별 개수를 구한다. 후보가 5~10개 수준이면 집계 쿼리 비용(1000건당 문서 읽기 1회)도 무시할 만함.
-
-> 대안: `stats/summary` 문서에 `increment()`로 카운터 유지. 빠르지만 표 변경 시 -1/+1 처리와 규칙 검증이 복잡해져서 이 규모에선 집계 쿼리가 낫다.
 
 ### `comments/{autoId}`
 
 ```ts
 {
-  nickname: "익명" | string,    // 0~20자
-  body: string,                 // 1~500자
-  styleId: string | null,       // 투표한 스타일(선택), 관리자가 맥락 파악용
-  uid: string,                  // 작성자 익명 uid (스팸 추적용)
+  name: string,        // 1~20자 (비우면 "익명")
+  body: string,        // 1~500자
+  source: string,
   createdAt: serverTimestamp()
 }
 ```
 
-## 5. 보안 규칙 (`firestore.rules`)
+콘솔 확인 방법: Firestore 데이터 탭에서 컬렉션을 열고 필드 필터(`styleId == "style-02"`, `source == "kakao"`) 사용. 컬렉션 상단의 "쿼리 빌더"에서 개수(COUNT) 집계도 가능.
 
-핵심: 댓글은 **누구나 create만 가능**, read는 관리자 uid만.
+## 6. 보안 규칙 (`firestore.rules`)
+
+로그인이 없으니 **쓰기만 허용하고 읽기는 전부 차단**한다. Firebase 콘솔은 규칙을 우회하므로 나는 콘솔에서 그대로 볼 수 있다. 결과가 화면에 안 보이는 것도 규칙 차원에서 보장된다.
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    function isAdmin() {
-      return request.auth != null && request.auth.uid == "<MY_ADMIN_UID>";
-    }
-    function validStyle(s) {
-      return s in ["style-01", "style-02", "style-03", "style-04"];
+    function validSource(s) {
+      return s is string && s.matches('^[a-z0-9_-]{1,30}$');
     }
 
-    match /votes/{uid} {
-      // 집계 쿼리를 위해 읽기 허용 (uid는 익명이라 개인정보 아님)
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["styleId", "updatedAt"])
-        && validStyle(request.resource.data.styleId)
+    match /votes/{clientId} {
+      allow read, delete: if false;
+      allow create, update: if clientId.matches('^[0-9a-f-]{36}$')
+        && request.resource.data.keys().hasOnly(['styleId', 'source', 'updatedAt'])
+        && request.resource.data.styleId in ['style-01', 'style-02', 'style-03', 'style-04']
+        && validSource(request.resource.data.source)
         && request.resource.data.updatedAt == request.time;
-      allow delete: if isAdmin();
     }
 
     match /comments/{id} {
-      allow read, delete: if isAdmin();
-      allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(["nickname", "body", "styleId", "uid", "createdAt"])
-        && request.resource.data.uid == request.auth.uid
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['name', 'body', 'source', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 20
         && request.resource.data.body is string
-        && request.resource.data.body.size() > 0
+        && request.resource.data.body.size() >= 1
         && request.resource.data.body.size() <= 500
-        && request.resource.data.nickname is string
-        && request.resource.data.nickname.size() <= 20
+        && validSource(request.resource.data.source)
         && request.resource.data.createdAt == request.time;
-      allow update: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
 ```
 
-- `<MY_ADMIN_UID>`: 관리자 페이지에서 처음 Google 로그인 후 콘솔(Authentication > Users)에서 확인해 넣는다.
-- 후보 id 목록은 `styles.ts`와 규칙 양쪽에 있으므로 스타일 변경 시 둘 다 수정.
-- 클라이언트 코드는 공개되므로 "나만 보기"는 반드시 **규칙**으로 보장 (UI에서 숨기는 것만으로는 안 됨).
+- 후보 id 목록이 `styles.ts`와 규칙 양쪽에 있으므로 스타일을 바꿀 때 둘 다 수정한다.
+- 투표 문서는 읽기가 막혀 있어서 클라이언트는 `getDoc` 없이 `setDoc`만 호출한다. 내가 무엇에 투표했는지는 `localStorage`에 따로 저장해서 표시한다.
 
-## 6. 화면 설계 (모바일 전용)
+## 7. 화면 설계 (모바일 전용, 단일 페이지)
 
-전역 레이아웃: `max-width: 480px; margin: 0 auto;` 바깥은 배경색으로 채움. `viewport` 메타 + `safe-area-inset` 패딩, 기본 폰트 16px(iOS 입력 시 자동 확대 방지).
+전역 레이아웃: `max-width: 480px; margin: 0 auto;`, 바깥은 배경색. `viewport` 메타, `safe-area-inset` 패딩, 입력창 폰트 16px(iOS 자동 확대 방지).
 
-### `index.html`
+위에서 아래로:
 1. **헤더**: 제목("제 다음 머리 골라주세요 💇"), 한 줄 설명, 현재 내 사진(선택)
-2. **후보 카드 목록** (세로 스크롤, 1열)
-   - 이미지(`aspect-ratio: 3/4`, `object-fit: cover`, `loading="lazy"`)
-   - 스타일 이름 + 설명
-   - 투표 버튼 → 선택된 카드는 테두리/체크 표시
-3. **결과 영역**: 투표 후에만 노출. 후보별 막대 그래프 + 표 수 + %, 내 선택 강조
-4. **의견 남기기**: 닉네임 입력(선택), textarea(글자 수 카운터 0/500), 보내기 버튼
-   - 안내 문구: "남긴 의견은 저만 볼 수 있어요"
-   - 전송 성공 시 폼 비우고 토스트 표시. 다른 사람 댓글 목록은 **표시하지 않음**
-5. **이미지 탭 시 전체화면 보기**(간단한 `<dialog>` 라이트박스)
+2. **후보 카드 목록** (1열 세로 스크롤)
+   - 이미지(`aspect-ratio: 3/4`, `object-fit: cover`, `loading="lazy"`), 탭하면 `<dialog>`로 크게 보기
+   - 스타일 이름 + 설명 + "이걸로!" 버튼
+   - 투표하면 해당 카드에 체크 표시 + "투표 완료! 다른 걸 누르면 바뀌어요" 안내. **득표 수나 비율은 표시하지 않음**
+3. **의견 남기기**
+   - 이름 입력(`maxlength=20`), 코멘트 textarea(`maxlength=500`, 글자 수 카운터)
+   - 보내기 버튼 → 전송 중에는 비활성화, 성공 시 코멘트 칸만 비우고 "고마워요!" 토스트
+   - 이름은 `localStorage`에 기억해서 다음 코멘트 때 자동 입력
+   - 댓글 목록은 표시하지 않음
 
-### `admin.html`
-- 비로그인: "Google로 로그인" 버튼
-- 관리자 uid가 아니면: "권한 없음" 표시 (실제 차단은 규칙이 담당)
-- 관리자: 투표 집계 표 + 댓글 목록(최신순, 시간·닉네임·투표 스타일·본문), 삭제 버튼
-- `robots` noindex 메타 추가
-
-## 7. 핵심 흐름
+## 8. 핵심 흐름
 
 ```
 페이지 진입
- └─ signInAnonymously()  (이미 세션 있으면 재사용 → 같은 기기면 같은 uid)
-     └─ getDoc(votes/{uid}) → 이미 투표했으면 선택 상태 + 결과 표시
+ ├─ source 결정 (URL → localStorage → "direct"), 주소창에서 ?from= 제거
+ ├─ clientId 없으면 생성 후 localStorage 저장
+ └─ localStorage의 myVote가 있으면 해당 카드 선택 상태로 표시
 
 투표 버튼
- └─ setDoc(votes/{uid}, { styleId, updatedAt: serverTimestamp() })
-     └─ 후보별 getCountFromServer → 결과 막대 갱신
+ └─ setDoc(votes/{clientId}, { styleId, source, updatedAt: serverTimestamp() })
+     └─ 성공 시 localStorage.myVote = styleId, UI 갱신 (실패 시 토스트로 재시도 안내)
 
 의견 보내기
- └─ addDoc(comments, { nickname, body, styleId, uid, createdAt: serverTimestamp() })
+ └─ addDoc(comments, { name, body, source, createdAt: serverTimestamp() })
 ```
 
-한계: 익명 uid는 브라우저 저장소 기준이라 시크릿 창/다른 기기로 중복 투표 가능. 지인 대상 소규모 투표라 허용하는 것으로 결정 (필요 시 App Check 추가).
-
-## 8. 구현 단계
-
-| 단계 | 작업 | 완료 기준 |
-| --- | --- | --- |
-| 0 | Firebase 콘솔에서 프로젝트 생성, Firestore(서울 `asia-northeast3`) 생성, Auth에서 익명·Google 공급자 활성화, 웹 앱 등록 | `firebaseConfig` 확보 |
-| 1 | Vite 프로젝트 셋업, `firebase init hosting firestore`, 멀티 페이지 설정 | `npm run dev`로 빈 페이지 2개 뜸 |
-| 2 | 모바일 레이아웃 + 후보 카드 갤러리 (`styles.ts` 기반 렌더) | 375px/430px 폭에서 깨짐 없음 |
-| 3 | 익명 로그인 + 투표 저장/변경 + 결과 집계 표시 | 새로고침해도 내 선택 유지, 표 변경 시 집계 반영 |
-| 4 | 의견 작성 폼 + 검증 + 토스트 | Firestore에 문서 생성 확인 |
-| 5 | 관리자 페이지 (Google 로그인, 댓글 목록, 집계, 삭제) | 내 계정만 댓글 조회 가능 |
-| 6 | 보안 규칙 작성 + **Emulator로 규칙 테스트** (`@firebase/rules-unit-testing`) | 아래 테스트 케이스 전부 통과 |
-| 7 | 이미지 최적화(WebP, 720px), OG 메타 태그, 파비콘 | 카카오톡 공유 시 미리보기 정상 |
-| 8 | `npm run build && firebase deploy` | 실제 URL에서 폰으로 투표·댓글·관리자 확인 |
-
-### 규칙 테스트 케이스 (단계 6)
-- 익명 사용자: 자기 `votes/{uid}` 생성/수정 ✅, 남의 uid 문서 쓰기 ❌, 잘못된 styleId ❌
-- 익명 사용자: 댓글 생성 ✅, 501자 댓글 ❌, 추가 필드 포함 ❌, 댓글 읽기/목록 ❌
-- 관리자: 댓글 읽기/삭제 ✅
-- 비로그인: 모든 쓰기 ❌
+**한계**: 로그인이 없으므로 시크릿 창, 다른 브라우저, 저장소 삭제 시 중복 투표가 가능하다. 지인 대상이라 허용한다. 장난이 걱정되면 App Check(reCAPTCHA Enterprise)를 붙여 봇의 직접 API 호출을 막을 수 있다 (로그인 없이 동작).
 
 ## 9. 배포 설정 (`firebase.json`)
 
@@ -191,28 +168,44 @@ service cloud.firestore {
   "hosting": {
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "cleanUrls": true,
     "headers": [
+      { "source": "**", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
       { "source": "/images/**", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
     ]
   },
-  "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" }
+  "firestore": { "rules": "firestore.rules" }
 }
 ```
 
-- 이미지는 장기 캐시하므로 교체 시 **파일명을 바꾼다** (`style-01-v2.webp`).
-- 관리자 Google 로그인을 위해 Auth > 승인된 도메인에 `*.web.app` 기본 포함 확인 (커스텀 도메인 쓰면 추가).
+**noindex 적용 (두 군데)**
+- `index.html`: `<meta name="robots" content="noindex, nofollow">`
+- Hosting 응답 헤더: `X-Robots-Tag: noindex, nofollow` (이미지 등 HTML이 아닌 파일까지 적용)
+- `robots.txt`로 크롤링을 막지는 **않는다**. 막으면 검색엔진이 noindex 지시를 읽지 못한다.
+- noindex는 카카오톡·트위터 링크 미리보기(OG 태그)에는 영향이 없다.
 
-## 10. 주의사항
+이미지는 장기 캐시하므로 교체할 때 **파일명을 바꾼다** (`style-01-v2.webp`).
 
-- **카카오톡 인앱 브라우저**: 익명 로그인은 정상 동작. Google 로그인은 인앱 브라우저에서 막히므로 관리자 페이지는 일반 브라우저(Chrome/Safari)에서 접속.
-- **비용**: Spark 무료 한도(문서 읽기 5만/일, 쓰기 2만/일, Hosting 10GB/월 전송) 안에서 충분. 이미지 용량이 전송량에 가장 큰 영향 → WebP 압축 필수.
-- **개인정보**: 본인 사진이 공개 URL에 올라가므로 링크 공유 범위에 유의. 검색 노출 원치 않으면 `index.html`에도 `noindex` 추가.
-- **스팸 대응(선택)**: App Check(reCAPTCHA Enterprise)로 봇 차단, 관리자 페이지에서 uid 기준 일괄 삭제.
+## 10. 구현 단계
 
-## 11. 확장 아이디어 (나중에)
+| 단계 | 작업 | 완료 기준 |
+| --- | --- | --- |
+| 0 | Firebase 프로젝트에서 Firestore 생성(서울 `asia-northeast3`), 웹 앱 등록 | `firebaseConfig` 확보 |
+| 1 | Vite 프로젝트 셋업, `firebase init hosting firestore` | `npm run dev`로 빈 페이지 표시 |
+| 2 | 모바일 레이아웃 + 후보 카드 갤러리 + 이미지 크게 보기 | 375px/430px 폭에서 깨짐 없음 |
+| 3 | `source.ts` (`from` 파싱·보관·주소창 정리), `clientId` 생성 | `?from=Twitter!`는 무시, `?from=twitter` 저장 확인 |
+| 4 | 투표 저장/변경 (결과 비표시) | 콘솔에 `votes` 문서 1개가 덮어써짐, `source` 기록 |
+| 5 | 이름 + 코멘트 폼, 전송, 토스트 | 콘솔에 `comments` 문서 생성 |
+| 6 | 보안 규칙 + Emulator 테스트 (`@firebase/rules-unit-testing`) | 아래 테스트 전부 통과 |
+| 7 | 이미지 최적화(WebP, 720px), OG 메타, 파비콘, noindex 메타·헤더 | 카카오톡 미리보기 정상, 응답 헤더에 `X-Robots-Tag` 확인 |
+| 8 | `npm run build && firebase deploy` | 실제 URL에서 폰으로 `?from=` 별 투표·댓글 저장 확인 |
 
-- 후보별 "좋아요/별로" 다중 평가, 기장·색상 등 카테고리별 투표
-- 투표 마감 시간 설정 (`config/settings` 문서 + 규칙에서 `request.time` 비교)
-- 관리자 페이지에서 후보 추가/이미지 업로드 (이때 Storage + Blaze 필요)
-- 실시간 결과(`onSnapshot`) — 투표 문서 수가 늘면 카운터 방식으로 전환
+### 규칙 테스트 케이스 (단계 6)
+- `votes`: 정상 생성·덮어쓰기 ✅ / 목록에 없는 styleId ❌ / 추가 필드 ❌ / 잘못된 source(`"Twitter!"`) ❌ / 읽기 ❌
+- `comments`: 정상 생성 ✅ / 빈 이름·빈 코멘트 ❌ / 501자 ❌ / 추가 필드 ❌ / 읽기·수정·삭제 ❌
+- 그 외 컬렉션 쓰기 ❌
+
+## 11. 주의사항
+
+- **비용**: 쓰기만 발생하고 읽기는 거의 없어서 지인 규모면 사실상 무료 구간. 전송량은 이미지가 대부분이므로 WebP 압축 필수.
+- **개인정보**: 본인 사진이 공개 URL에 올라간다. noindex는 검색 노출만 막고, 링크를 아는 사람은 누구나 볼 수 있다.
+- **카카오톡 인앱 브라우저**: 로그인을 쓰지 않으므로 특별한 문제 없음. `localStorage`도 정상 동작.
