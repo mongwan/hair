@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { resolveSource } from './source';
 import { getClientId, getMyVote, getSavedName, setMyVote, setSavedName } from './storage';
 import { STYLES, type HairStyle } from './styles';
+import 'wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.css';
 import './style.css';
 
 const source = resolveSource();
