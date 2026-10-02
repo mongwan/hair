@@ -1,7 +1,7 @@
 # 제 다음 머리 골라주세요 💇
 
 지인에게 링크를 공유해서 헤어스타일 투표와 의견을 받는 모바일 전용 단일 페이지.
-투표·코멘트는 Firestore에 저장만 되고 화면에는 표시되지 않는다. 확인은 Firebase 콘솔에서 한다.
+투표·코멘트는 Firestore에 저장만 되고 화면에는 표시되지 않는다. 확인은 [로컬 관리자 콘솔](#결과-확인-로컬-관리자-콘솔)이나 Firebase 콘솔에서 한다.
 
 계획과 설계 배경은 [PLAN.md](PLAN.md) 참고.
 
@@ -21,6 +21,29 @@ Firebase 프로젝트: `hair-d2632` (배포 주소 https://hair-d2632.web.app)
 3. id를 추가/변경했다면 `firestore.rules`의 `validStyle` 목록도 똑같이 수정
    (`npm run test:rules`가 둘이 다르면 실패한다)
 4. 공유 미리보기 이미지는 `public/og-2.jpg` (1200×630). 바꿀 때는 파일명도 바꿔야 메신저 캐시를 피할 수 있다
+
+## 결과 확인 (로컬 관리자 콘솔)
+
+내 컴퓨터에서만 열리는 결과 확인 페이지 (`admin/`). 배포되지 않는다.
+
+- 출처(`?from=` 값, source)별 필터 — 칩, 출처별 막대, 표의 행을 누르면 해당 출처만 표시
+- 스타일별 득표 막대 그래프, 출처별 투표 수 막대 그래프
+- 출처 × 스타일 표, 의견 목록(최신순)
+
+```bash
+npm run admin              # http://localhost:4000 (실제 hair-d2632 데이터)
+npm run admin:emulator     # 로컬 에뮬레이터(localhost:8080) 데이터
+```
+
+보안 규칙이 읽기를 막고 있어서 Admin SDK로 읽는다. 최초 1회 인증이 필요하다 (둘 중 하나):
+
+- **gcloud 로그인 (권장)**: [gcloud CLI](https://cloud.google.com/sdk/docs/install) 설치 후
+  `gcloud auth application-default login` — 프로젝트 소유자 Google 계정으로 로그인
+- **서비스 계정 키**: 위 배포용과 같은 방식으로 JSON 키를 받아 저장소 **밖**에 두고
+  `GOOGLE_APPLICATION_CREDENTIALS=/경로/key.json npm run admin`
+
+서버는 `127.0.0.1`에만 열리므로 같은 네트워크의 다른 기기에서는 접속할 수 없다. 포트는 `ADMIN_PORT=5000 npm run admin`처럼 바꾼다.
+Node 22.18 이상이 필요하다 (TypeScript 파일을 그대로 실행).
 
 ## 개발
 
