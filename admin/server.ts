@@ -15,10 +15,12 @@ const PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? (process.env.FIRESTORE_EMU
 const root = join(import.meta.dirname, '..');
 const imagesDir = join(root, 'public', 'images');
 
-// FIREBASE_SERVICE_ACCOUNT(키 JSON 내용) → GOOGLE_APPLICATION_CREDENTIALS / gcloud 로그인 순
+// FIREBASE_SERVICE_ACCOUNT(키 JSON 내용 또는 그 base64) → GOOGLE_APPLICATION_CREDENTIALS / gcloud 로그인 순
 function credential() {
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT;
-  return json ? cert(JSON.parse(json)) : applicationDefault();
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+  if (!raw) return applicationDefault();
+  const json = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
+  return cert(JSON.parse(json));
 }
 
 const app = initializeApp(

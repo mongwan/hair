@@ -42,7 +42,9 @@ npm run admin:emulator     # 로컬 에뮬레이터(localhost:8080) 데이터
 - **서비스 계정 키**: 위 배포용과 같은 방식으로 JSON 키를 받아 저장소 **밖**에 두고
   `GOOGLE_APPLICATION_CREDENTIALS=/경로/key.json npm run admin`
 
-- **환경 변수에 키 내용**: `FIREBASE_SERVICE_ACCOUNT`에 JSON 키 내용 전체를 넣어도 된다 (Claude Code 클라우드 세션의 환경 변수 등)
+- **환경 변수에 키 내용**: `FIREBASE_SERVICE_ACCOUNT`에 JSON 키를 base64로 바꾼 한 줄을 넣는다 (Claude Code 클라우드 세션의 환경 변수 등). JSON 원문도 받지만 줄바꿈·따옴표가 깨지기 쉽다
+  - macOS: `base64 -i key.json | tr -d '\n' | pbcopy` → 클립보드에 복사됨
+  - Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("key.json")) | Set-Clipboard`
 
 ### 스냅샷 (서버 없이 보기)
 
