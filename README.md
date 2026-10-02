@@ -42,6 +42,18 @@ npm run admin:emulator     # 로컬 에뮬레이터(localhost:8080) 데이터
 - **서비스 계정 키**: 위 배포용과 같은 방식으로 JSON 키를 받아 저장소 **밖**에 두고
   `GOOGLE_APPLICATION_CREDENTIALS=/경로/key.json npm run admin`
 
+- **환경 변수에 키 내용**: `FIREBASE_SERVICE_ACCOUNT`에 JSON 키 내용 전체를 넣어도 된다 (Claude Code 클라우드 세션의 환경 변수 등)
+
+### 스냅샷 (서버 없이 보기)
+
+```bash
+npm run admin:snapshot                  # admin/out/results.html 생성 (git에 안 올라감)
+npm run admin:snapshot -- ~/결과.html    # 저장 위치 지정
+```
+
+그 시점의 데이터와 이미지가 들어간 HTML 한 장이라 더블클릭으로 열린다. 필터·그래프도 그대로 동작한다.
+투표·의견이 그대로 들어 있으니 공개된 곳에 올리지 말 것.
+
 서버는 `127.0.0.1`에만 열리므로 같은 네트워크의 다른 기기에서는 접속할 수 없다. 포트는 `ADMIN_PORT=5000 npm run admin`처럼 바꾼다.
 Node 22.18 이상이 필요하다 (TypeScript 파일을 그대로 실행).
 

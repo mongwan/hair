@@ -10,7 +10,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-hair \"vitest run\"",
     "deploy": "npm run build && firebase deploy",
     "admin": "node admin/server.ts",
-    "admin:emulator": "FIRESTORE_EMULATOR_HOST=localhost:8080 node admin/server.ts"
+    "admin:emulator": "FIRESTORE_EMULATOR_HOST=localhost:8080 node admin/server.ts",
+    "admin:snapshot": "node admin/server.ts --snapshot"
   },
   "dependencies": {
     "firebase": "^12.19.0",

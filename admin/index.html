@@ -155,6 +155,7 @@
 </main>
 <div class="tooltip" id="tooltip" role="tooltip"></div>
 
+<!-- SNAPSHOT -->
 <script>
 const ALL = '__all__';
 let data = null;
@@ -307,12 +308,17 @@ async function load() {
   $('reload').disabled = true;
   $('meta').textContent = '불러오는 중…';
   try {
-    const res = await fetch('/api/results');
-    if (!res.ok) throw new Error(await res.text());
-    data = await res.json();
+    if (window.SNAPSHOT) {
+      data = window.SNAPSHOT;
+      $('reload').hidden = true;
+    } else {
+      const res = await fetch('/api/results');
+      if (!res.ok) throw new Error(await res.text());
+      data = await res.json();
+    }
     if (selected !== ALL && !sources().some(([s]) => s === selected)) selected = ALL;
     $('error').hidden = true;
-    $('meta').textContent = `${data.emulator ? '에뮬레이터' : data.projectId} · ${fmtDate(data.fetchedAt)} 기준`;
+    $('meta').textContent = `${data.emulator ? '에뮬레이터' : data.projectId} · ${fmtDate(data.fetchedAt)} 기준${window.SNAPSHOT ? ' 스냅샷' : ''}`;
     render();
   } catch (error) {
     $('error').hidden = false;
