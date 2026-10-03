@@ -39,7 +39,7 @@ VITE_USE_EMULATOR=true npm run dev
 ## 결과 CSV로 내려받기
 
 투표·코멘트를 `exports/votes.csv`, `exports/comments.csv`로 저장하고 투표 집계를 터미널에 출력한다.
-공개용 집계(스타일별 득표 수만)는 `public/result/stats.csv`에 따로 저장한다.
+공개용 집계(출처 × 스타일 득표 수만)는 `public/result/stats.csv`에 따로 저장한다.
 Admin SDK를 쓰므로 보안 규칙과 관계없이 전부 읽힌다. Node 22.18 이상 필요 (`.ts`를 바로 실행).
 
 ```bash
@@ -52,8 +52,10 @@ npm run export
 
 ## 결과 페이지 (`/result`)
 
-`public/result/stats.csv`를 읽어 총 투표 수, 1위, 스타일별 득표 막대를 보여준다.
-이 파일에는 스타일별 득표 수만 있고 이름·의견·출처·시각은 없어서 공개해도 된다.
+`public/result/stats.csv`를 읽어 총 투표 수, 1위, 스타일별·출처별 득표 막대, 출처 × 스타일 표를 보여준다.
+출처 칩·막대·표의 행을 누르면 해당 출처만 표시한다.
+이 파일에는 출처별·스타일별 표 수만 있고 이름·의견·시각은 없다.
+단, 한 사람에게만 준 `?from=` 링크가 있으면 그 출처의 표는 곧 그 사람의 표가 된다.
 
 1. `npm run export`
 2. `public/result/stats.csv`를 커밋해서 `main`에 머지 → 배포되면 `/result`에 반영
