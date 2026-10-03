@@ -1,7 +1,8 @@
 # 제 다음 머리 골라주세요 💇
 
 지인에게 링크를 공유해서 헤어스타일 투표와 의견을 받는 모바일 전용 단일 페이지.
-투표·코멘트는 Firestore에 저장만 되고 화면에는 표시되지 않는다. 확인은 Firebase 콘솔에서 한다.
+투표·코멘트는 Firestore에 저장만 되고 투표 화면에는 표시되지 않는다.
+결과는 [`npm run export`로 CSV를 받아서](#결과-확인) 보고, 출처·스타일별 득표 수만 `/result` 페이지로 공개한다.
 
 계획과 설계 배경은 [PLAN.md](PLAN.md) 참고.
 
@@ -101,14 +102,46 @@ https://<프로젝트>.web.app/?from=family
 - 처음 들어온 출처는 브라우저에 저장되어 재방문 시에도 유지된다. 없으면 `direct`.
 - 방문 후 주소창에서 `?from=`이 지워지므로, 방문자가 링크를 다시 퍼뜨려도 출처가 섞이지 않는다.
 
-## 결과 확인 (Firebase 콘솔 > Firestore)
+## 결과 확인
+
+### 1. CSV로 내려받기 (`npm run export`)
+
+```bash
+gcloud auth application-default login   # 최초 1회 (hair-d2632 권한이 있는 계정)
+npm run export
+```
+
+| 파일 | 내용 | git |
+| --- | --- | --- |
+| `exports/votes.csv` | 투표 전체 (`styleId`, `styleName`, `source`, `updatedAt`) | 제외 (나만 봄) |
+| `exports/comments.csv` | 의견 전체 (`name`, `body`, `source`, `createdAt`) | 제외 (나만 봄) |
+| `public/result/stats.csv` | 출처 × 스타일 득표 수만 | 커밋해서 `/result`로 공개 |
+
+- 터미널에 스타일별 득표 수도 출력한다
+- Admin SDK로 읽으므로 보안 규칙(읽기 차단)과 관계없이 전부 읽힌다
+- 엑셀에서 한글이 깨지지 않도록 BOM을 붙이고, 시간은 한국 시간으로 저장한다
+- Node 22.18 이상 필요 (`.ts`를 바로 실행)
+
+### 2. 결과 페이지 (`/result`)
+
+https://choose-hair-of.mongwan.dev/result/
+
+`public/result/stats.csv`만 읽어서 총 투표 수, 1위, 스타일별·출처별 득표 막대, 출처 × 스타일 표를 보여준다.
+출처 칩·막대·표의 행을 누르면 해당 출처만 표시한다. 이름·의견·시각은 들어가지 않는다.
+
+갱신하려면 `npm run export` → `public/result/stats.csv` 커밋 → `main`에 머지 (배포되면 반영).
+로컬에서는 `npm run dev` 후 http://localhost:5173/result/
+
+- 한 사람에게만 준 `?from=` 링크가 있으면 그 출처의 표는 곧 그 사람의 표가 되니, 그런 출처가 생기면 공개 전에 해당 줄을 지운다
+
+### 3. Firebase 콘솔 > Firestore
 
 | 컬렉션 | 필드 |
 | --- | --- |
 | `votes/{브라우저ID}` | `styleId`, `source`, `updatedAt` — 브라우저당 1개, 다시 투표하면 덮어씀 |
 | `comments/{자동ID}` | `name`, `body`, `source`, `createdAt` |
 
-콘솔의 쿼리 빌더에서 `styleId == "style-02"` 같은 필터와 COUNT 집계를 쓰면 후보별·출처별 득표를 볼 수 있다.
-보안 규칙상 웹에서는 아무도 읽을 수 없고, 콘솔에서만 보인다.
+쿼리 빌더에서 `styleId == "style-02"` 같은 필터와 COUNT 집계로도 볼 수 있다.
+보안 규칙상 웹(투표 페이지 포함)에서는 아무도 원본 데이터를 읽을 수 없다.
 
 로그인이 없으므로 시크릿 창이나 다른 브라우저로 중복 투표가 가능하다 (지인 대상이라 허용).
