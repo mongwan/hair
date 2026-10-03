@@ -36,6 +36,19 @@ npx firebase emulators:start --only firestore --project demo-hair
 VITE_USE_EMULATOR=true npm run dev
 ```
 
+## 결과 CSV로 내려받기
+
+투표·코멘트를 `exports/votes.csv`, `exports/comments.csv`로 저장하고 투표 집계를 터미널에 출력한다.
+Admin SDK를 쓰므로 보안 규칙과 관계없이 전부 읽힌다. Node 22.18 이상 필요 (`.ts`를 바로 실행).
+
+```bash
+gcloud auth application-default login   # 최초 1회 (hair-d2632 권한이 있는 계정)
+npm run export
+```
+
+- 엑셀에서 한글이 깨지지 않도록 BOM을 붙이고, 시간은 한국 시간으로 바꿔서 저장한다
+- `exports/`는 개인 의견이 담기므로 `.gitignore`에 들어 있다
+
 ## 배포 (GitHub Actions)
 
 `.github/workflows/deploy.yml`
