@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>투표 결과</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #1a1a1d;
+    --text: #f2f2f3;
+    --muted: #a1a1a8;
+    --line: #2c2c31;
+    --accent: #ff8f5e;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: keep-all;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { margin: 0 0 20px; font-size: 24px; }
+  h2 { margin: 0 0 4px; font-size: 17px; }
+  .sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .tile .label { color: var(--muted); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .value small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+
+  .bars { display: grid; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: minmax(96px, 140px) 1fr; align-items: center; gap: 12px; }
+  .bar-label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; }
+  .bar-label img { width: 36px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; }
+  .bar-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { height: 28px; display: flex; align-items: center; }
+  .bar-fill { height: 20px; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; transition: width .35s ease; }
+  .bar-fill.zero { background: var(--line); }
+  .bar-value { margin-left: 8px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-value .pct { color: var(--muted); margin-left: 4px; }
+  .empty { color: var(--muted); padding: 16px 0; margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>투표 결과</h1>
+  <section class="tiles">
+    <div class="tile"><div class="label">투표 수</div><div class="value" id="t-votes">–</div></div>
+    <div class="tile"><div class="label">1위</div><div class="value" id="t-top">–</div></div>
+  </section>
+  <section class="card">
+    <h2>스타일별 득표</h2>
+    <p class="sub" id="sub"></p>
+    <div class="bars" id="bars"></div>
+  </section>
+</main>
+<script type="module" src="/src/result/main.ts"></script>
+</body>
+</html>

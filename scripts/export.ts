@@ -1,5 +1,6 @@
 // Firestore의 투표·코멘트를 CSV로 내려받는다 (관리자 권한이라 보안 규칙과 무관)
-// 실행: npm run export → exports/votes.csv, exports/comments.csv
+// 실행: npm run export → exports/votes.csv, exports/comments.csv (개인용, git 제외)
+//                       + public/result/stats.csv (스타일별 득표 수만, 배포해서 /result에서 보는 용도)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -10,6 +11,7 @@ initializeApp({ credential: applicationDefault(), projectId });
 const db = getFirestore();
 
 const OUT_DIR = 'exports';
+const STATS_DIR = 'public/result';
 const styleName = new Map(STYLES.map((s) => [s.id, s.name]));
 
 const formatValue = (v: unknown): string => {
@@ -56,3 +58,11 @@ const tally = new Map<string, number>();
 for (const v of votes) tally.set(v.styleId as string, (tally.get(v.styleId as string) ?? 0) + 1);
 console.log('\n투표 집계');
 for (const s of STYLES) console.log(`  ${s.name.padEnd(10)} ${tally.get(s.id) ?? 0}`);
+
+// 공개용: 이름·의견·출처·시각 없이 집계만
+mkdirSync(STATS_DIR, { recursive: true });
+writeFileSync(
+  `${STATS_DIR}/stats.csv`,
+  toCsv(STYLES.map((s) => ({ styleId: s.id, styleName: s.name, votes: tally.get(s.id) ?? 0 }))),
+);
+console.log(`\n집계 → ${STATS_DIR}/stats.csv`);
