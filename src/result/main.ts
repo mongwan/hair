@@ -92,7 +92,7 @@ function render() {
   $('t-top').replaceChildren(top.length ? top.map((s) => s.name).join(', ') : '–', top.length ? el('small', {}, `${max}표`) : '');
 
   // 스타일별 막대
-  $('style-sub').textContent = `${selected === ALL ? '전체 출처' : `from=${selected}`} · 총 ${total}표`;
+  $('style-sub').textContent = `${selected === ALL ? '전체 출처' : selected} · 총 ${total}표`;
   $('style-bars').replaceChildren(
     ...STYLES.map((s) => barRow(s.name, counts.get(s.id) ?? 0, total, max, { image: s.image })),
   );
