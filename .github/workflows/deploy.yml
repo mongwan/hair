@@ -38,7 +38,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
       - name: Write service account credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -49,6 +48,10 @@ jobs:
           fi
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+      # /result용 집계(출처 × 스타일 표 수)만 Firestore에서 새로 뽑는다. 이름·의견은 파일로 만들지 않음
+      - name: Export vote stats
+        run: npm run export -- --stats-only
+      - run: npm run build
       - name: Deploy to Firebase
         run: npx firebase deploy --only hosting,firestore:rules --project hair-d2632 --non-interactive
       - name: Remove credentials

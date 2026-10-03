@@ -115,7 +115,7 @@ npm run export
 | --- | --- | --- |
 | `exports/votes.csv` | 투표 전체 (`styleId`, `styleName`, `source`, `updatedAt`) | 제외 (나만 봄) |
 | `exports/comments.csv` | 의견 전체 (`name`, `body`, `source`, `createdAt`) | 제외 (나만 봄) |
-| `public/result/stats.csv` | 출처 × 스타일 득표 수만 | 커밋해서 `/result`로 공개 |
+| `public/result/stats.csv` | 출처 × 스타일 득표 수만 (로컬 미리보기용) | 제외 (배포 때 새로 만듦) |
 
 - 터미널에 스타일별 득표 수도 출력한다
 - Admin SDK로 읽으므로 보안 규칙(읽기 차단)과 관계없이 전부 읽힌다
@@ -126,13 +126,18 @@ npm run export
 
 https://choose-hair-of.mongwan.dev/result/
 
-`public/result/stats.csv`만 읽어서 총 투표 수, 1위, 스타일별·출처별 득표 막대, 출처 × 스타일 표를 보여준다.
+`/result/stats.csv`만 읽어서 총 투표 수, 1위, 스타일별·출처별 득표 막대, 출처 × 스타일 표를 보여준다.
 출처 칩·막대·표의 행을 누르면 해당 출처만 표시한다. 이름·의견·시각은 들어가지 않는다.
 
-갱신하려면 `npm run export` → `public/result/stats.csv` 커밋 → `main`에 머지 (배포되면 반영).
-로컬에서는 `npm run dev` 후 http://localhost:5173/result/
+**갱신**: GitHub > Actions > **Test & Deploy** > **Run workflow** (`main`) 버튼.
+배포할 때마다(`main` 푸시 포함) 워크플로가 `npm run export -- --stats-only`로 Firestore에서 집계만 새로 뽑아 함께 배포한다.
+이 모드는 의견을 읽지 않고 투표 원본도 파일로 남기지 않으며, 로그에는 스타일별 합계만 찍힌다.
 
-- 한 사람에게만 준 `?from=` 링크가 있으면 그 출처의 표는 곧 그 사람의 표가 되니, 그런 출처가 생기면 공개 전에 해당 줄을 지운다
+출처 이름은 `scripts/export.ts`의 `SOURCE_LABELS`로 바꾼다 (예: `ing`, `yurasai` → 카톡).
+여기 없는 출처는 전부 **기타**로 합쳐지므로, 새 `?from=` 링크를 따로 보여주고 싶으면 이름표에 추가한다.
+한 사람에게만 준 링크는 이름표에 넣지 말고 기타에 묻어 두는 게 안전하다.
+
+로컬에서는 `npm run export` 후 `npm run dev` → http://localhost:5173/result/
 
 ### 3. Firebase 콘솔 > Firestore
 

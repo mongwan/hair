@@ -1,6 +1,7 @@
 // Firestore의 투표·코멘트를 CSV로 내려받는다 (관리자 권한이라 보안 규칙과 무관)
 // 실행: npm run export → exports/votes.csv, exports/comments.csv (개인용, git 제외)
-//                       + public/result/stats.csv (출처 × 스타일 득표 수만, 배포해서 /result에서 보는 용도)
+//                       + public/result/stats.csv (출처 × 스타일 득표 수만, /result 페이지용)
+//       npm run export -- --stats-only → stats.csv만 (배포 워크플로에서 사용, 원본은 파일로 남기지 않음)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -12,6 +13,19 @@ const db = getFirestore();
 
 const OUT_DIR = 'exports';
 const STATS_DIR = 'public/result';
+const STATS_ONLY = process.argv.includes('--stats-only');
+
+// stats.csv에 쓰는 출처 이름. 여기 없는 출처는 '기타'로 합친다 (한 사람만 쓴 링크의 표가 드러나지 않도록)
+const SOURCE_LABELS: Record<string, string> = {
+  direct: '기타',
+  family: '가족',
+  ing: '카톡',
+  yurasai: '카톡',
+  insta: '인스타',
+  ssafy: '싸피',
+  twitter: '트위터',
+};
+const OTHER = '기타';
 const styleName = new Map(STYLES.map((s) => [s.id, s.name]));
 
 const formatValue = (v: unknown): string => {
@@ -39,12 +53,16 @@ async function exportCollection(
 ) {
   const snap = await db.collection(name).get();
   const rows = snap.docs.map((d) => ({ id: d.id, ...mapRow(d.data()) }));
-  writeFileSync(`${OUT_DIR}/${name}.csv`, toCsv(rows));
-  console.log(`${name}: ${rows.length}건 → ${OUT_DIR}/${name}.csv`);
+  if (STATS_ONLY) {
+    console.log(`${name}: ${rows.length}건`);
+  } else {
+    writeFileSync(`${OUT_DIR}/${name}.csv`, toCsv(rows));
+    console.log(`${name}: ${rows.length}건 → ${OUT_DIR}/${name}.csv`);
+  }
   return rows;
 }
 
-mkdirSync(OUT_DIR, { recursive: true });
+if (!STATS_ONLY) mkdirSync(OUT_DIR, { recursive: true });
 
 const votes = await exportCollection('votes', (d) => ({
   styleId: d.styleId,
@@ -52,13 +70,13 @@ const votes = await exportCollection('votes', (d) => ({
   source: d.source,
   updatedAt: d.updatedAt,
 }));
-await exportCollection('comments');
+if (!STATS_ONLY) await exportCollection('comments');
 
 const tally = new Map<string, number>();
 const bySource = new Map<string, Map<string, number>>();
 for (const v of votes) {
   const styleId = v.styleId as string;
-  const source = (v.source as string) || 'direct';
+  const source = SOURCE_LABELS[(v.source as string) || 'direct'] ?? OTHER;
   tally.set(styleId, (tally.get(styleId) ?? 0) + 1);
   const counts = bySource.get(source) ?? new Map<string, number>();
   counts.set(styleId, (counts.get(styleId) ?? 0) + 1);
@@ -72,7 +90,7 @@ mkdirSync(STATS_DIR, { recursive: true });
 writeFileSync(
   `${STATS_DIR}/stats.csv`,
   toCsv(
-    [...bySource.keys()].sort().flatMap((source) =>
+    [...bySource.keys()].flatMap((source) =>
       STYLES.map((s) => ({ source, styleId: s.id, styleName: s.name, votes: bySource.get(source)!.get(s.id) ?? 0 })),
     ),
   ),
